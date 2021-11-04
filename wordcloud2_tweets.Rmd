@@ -1,0 +1,114 @@
+---
+title: "STAT451 PRESENTATION"
+author: "Jessica Brungard"
+date: "11/2/2021"
+output: html_document
+---
+
+# BACKGROUND INFORMATION
+
+Creating word clouds from tweets by Donald Trump with tm package and wordcloud2 package
+
+```{r, message =FALSE}
+library(RColorBrewer)
+library(wordcloud2)
+library(tidyverse)
+library(tm)
+```
+
+```{r}
+data <- read.csv('trump_tweets.csv')
+```
+
+## Creating our corpus
+
+We use a simple corpus (see help: Simple Corpora)
+
+```{r, warning = FALSE}
+# Create a vector containing text column
+tweet_corpus <- SimpleCorpus(VectorSource(data$text))
+
+# Now we have a corpus containing 1984 documents 
+# Each document represents a Trump Tweet
+tweet_corpus
+```
+
+## Cleaning our Corpus
+
+```{r, warning = FALSE}
+# cleaning the corpus
+clean_corpus <- tweet_corpus %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(removeWords, stopwords("english")) %>%
+  tm_map(content_transformer(tolower))
+
+clean_corpus <- tm_map(clean_corpus, removeWords, words = c("...", "'s", '“',"_"))
+```
+
+## Turning our Corpus into a dataframe
+
+```{r}
+dtm <- TermDocumentMatrix(clean_corpus) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+```
+
+## Creating our wordcloud
+
+We are looking at almost 7k words+ which will occur over 16k times. For illustrative purposes, we will create a wordcloud anyway.
+
+```{r}
+library(wordcloud2)
+
+# wordcloud with default arguments
+wordcloud2(df)
+
+# color and size modification
+wordcloud2(df, size=.7, color = 'random-light', background ='grey')
+
+# shape and size modification
+wordcloud2(df, size = .7, shape = "pentagon")
+```
+
+## More Cleaning
+
+```{r}
+# filter for significant frequencies
+df2 <- filter(df, freq >= 10)
+
+# remove row containing "..."
+df2 <- df2[-c(2),]
+```
+
+## More Word Clouds (post cleaning)
+
+```{r}
+# color and background color
+wordcloud2(df2, color = "random-light", backgroundColor = "grey")
+
+# modifying rotation 
+wordcloud2(df2, size = 1, minRotation = -pi/2, maxRotation = -pi/2)
+
+# rotation ratio is the probability of a word rotating (see w/ and w/o)
+wordcloud2(df2, size = .9 , minRotation = -pi/6, maxRotation = -pi/6, rotateRatio = 1)
+
+# demonstrate color vector
+wordcloud2(df2, color = ifelse(df2[, 2] >= 36, 'red', 'skyblue'))
+```
+
+## File Figure Mask and Letter Cloud
+
+See link for known issues regarding silent fail 
+<https://github.com/Lchiffon/wordcloud2/issues/12>
+
+```{r}
+figPath = system.file("examples/t.png",package = "wordcloud2")
+wordcloud2(df2, figPath = figPath, size = .7,color = ifelse(df2[, 2] >= 50, 'red', 'skyblue') ,backgroundColor='grey')
+```
+
+```{r}
+letterCloud(df, word = "TRUMP", wordSize = .5)
+```
